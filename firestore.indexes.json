@@ -1,0 +1,37 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "daily_routes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "routeDate", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_routes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "routeDate", "order": "ASCENDING" },
+        { "fieldPath": "driverId", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "daily_routes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "driverId", "order": "ASCENDING" },
+        { "fieldPath": "routeDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "drivers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "displayName", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

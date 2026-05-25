@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function hasRole() {
+      return request.auth != null &&
+        (request.auth.token.role == "admin" ||
+         request.auth.token.role == "dispatcher");
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

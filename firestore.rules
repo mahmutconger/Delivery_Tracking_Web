@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function hasRole() {
+      return isAuthenticated() &&
+        (request.auth.token.role == "admin" ||
+         request.auth.token.role == "dispatcher");
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == "admin";
+    }
+
+    match /drivers/{driverId} {
+      allow read: if hasRole();
+      allow write: if false;
+    }
+
+    match /drivers_location/{driverId} {
+      allow read: if hasRole();
+      allow write: if false;
+    }
+
+    match /daily_routes/{routeId} {
+      allow read: if hasRole();
+      allow write: if false;
+
+      match /stops/{stopId} {
+        allow read: if hasRole();
+        allow write: if false;
+      }
+    }
+  }
+}
