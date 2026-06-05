@@ -1,9 +1,7 @@
 /**
- * Escapes a single CSV cell value according to RFC 4180:
- * - Values containing commas, double-quotes, or newlines are wrapped in
- *   double-quotes.
- * - Existing double-quote characters are doubled ("").
- * - null / undefined become an empty string.
+ * @brief RFC 4180 standardına göre tek bir CSV hücre değerini kaçış karakterleriyle kodlar.
+ * @param value Kaçış uygulanacak değer. null/undefined boş dizeye dönüştürülür.
+ * @returns Güvenli CSV hücre dizesi; virgül, tırnak veya satır sonu içeriyorsa çift tırnaklarla sarılır.
  */
 export function escapeCsvCell(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -23,11 +21,10 @@ export interface CsvColumn<T> {
 }
 
 /**
- * Converts an array of objects into a CSV string.
- *
- * Algorithm: single O(n * cols) pass using Array.join — avoids O(n²)
- * string concatenation that would occur with repeated + or += operators
- * on large datasets.
+ * @brief Nesne dizisini CSV dizesine dönüştürür.
+ * @param rows Dönüştürülecek nesne dizisi.
+ * @param columns Sütun başlıklarını ve accessor fonksiyonlarını tanımlayan yapılandırma.
+ * @returns Başlık satırı dahil tam CSV dizesi. O(n * cols) karmaşıklığında Array.join kullanır.
  */
 export function buildCsvRows<T extends object>(
   rows: T[],

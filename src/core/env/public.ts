@@ -27,6 +27,10 @@ export const publicEnv = publicEnvSchema.parse({
   NEXT_PUBLIC_MAP_ATTRIBUTION: process.env.NEXT_PUBLIC_MAP_ATTRIBUTION,
 });
 
+/**
+ * @brief Firebase istemci SDK'sı için gerekli tüm public ortam değişkenlerinin tanımlı olup olmadığını kontrol eder.
+ * @returns API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID ve APP_ID tanımlıysa true.
+ */
 export function isFirebaseClientConfigured() {
   return Boolean(
     publicEnv.NEXT_PUBLIC_FIREBASE_API_KEY &&

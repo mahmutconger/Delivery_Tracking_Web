@@ -17,11 +17,9 @@ interface OperationDateContextValue {
 const OperationDateContext = createContext<OperationDateContextValue | null>(null);
 
 /**
- * Provides the "currently viewed operation date" to the entire dashboard.
- *
- * Without this context, every page independently calls toRouteDate(new Date()).
- * With it, the admin can change the date in one place and all pages — routes,
- * drivers, dashboard snapshot — react to the same value.
+ * @brief Dashboard genelinde "aktif operasyon tarihi"ni tek noktadan yönetir.
+ * @param children Bu provider'ın sarmalayacağı React bileşen ağacı.
+ * @param initialDate Başlangıç tarihi ("yyyy-MM-dd"). Verilmezse bugünün tarihi kullanılır.
  */
 export function OperationDateProvider({
   children,
@@ -39,6 +37,11 @@ export function OperationDateProvider({
   );
 }
 
+/**
+ * @brief OperationDateContext'e erişim sağlayan hook.
+ * @returns date (aktif tarih dizesi) ve setDate (tarihi güncelleyen fonksiyon) içeren nesne.
+ * @throws OperationDateProvider dışında kullanılırsa hata fırlatır.
+ */
 export function useOperationDate(): OperationDateContextValue {
   const context = useContext(OperationDateContext);
   if (!context) {

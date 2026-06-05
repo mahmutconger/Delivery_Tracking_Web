@@ -1,14 +1,7 @@
 /**
- * Parses a RFC 4180-compliant CSV string into an array of objects.
- *
- * Algorithm:
- * - Normalise line endings (\r\n / \r → \n).
- * - Tokenise each row with a state-machine that handles quoted fields
- *   containing commas, double-quotes, and embedded newlines.
- * - First row becomes the header; subsequent rows become keyed objects.
- * - Empty rows are skipped.
- *
- * Time complexity: O(n) where n = total character count.
+ * @brief RFC 4180 uyumlu bir CSV dizesini nesne dizisine dönüştürür.
+ * @param raw Ham CSV dizesi. \r\n ve \r satır sonları otomatik normalize edilir.
+ * @returns Her satırın başlık anahtarlarıyla eşlendiği nesne dizisi. Boş satırlar atlanır.
  */
 export function parseCsv(raw: string): Record<string, string>[] {
   const normalised = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -37,9 +30,9 @@ export function parseCsv(raw: string): Record<string, string>[] {
 }
 
 /**
- * State-machine tokeniser.
- * Returns a 2-D array: rows of cell strings.
- * Handles: quoted fields, escaped double-quotes (""), embedded newlines.
+ * @brief CSV girişini satır × hücre iki boyutlu dizisine tokenize eden durum makinesi.
+ * @param input Normalize edilmiş (yalnızca \n satır sonu içeren) CSV dizesi.
+ * @returns Satır dizilerinden oluşan iki boyutlu dize dizisi.
  */
 function tokeniseRows(input: string): string[][] {
   const rows: string[][] = [];

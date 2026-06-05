@@ -1,12 +1,8 @@
 /**
- * Triggers a browser file download from an in-memory string.
- *
- * No server round-trip: the content is converted to a Blob, a temporary
- * object URL is created, a hidden <a> element performs the click, then
- * the URL is immediately revoked to release memory.
- *
- * Must be called from a user-gesture handler (click / submit) to avoid
- * popup blockers in certain browsers.
+ * @brief Bellekteki bir dizeyi tarayıcı üzerinden dosya olarak indirtir.
+ * @param filename İndirilen dosyaya verilecek ad.
+ * @param content Dosya içeriği olarak kullanılacak dize.
+ * @param mimeType Blob MIME türü. Varsayılan: "text/csv;charset=utf-8;".
  */
 export function downloadAsFile(
   filename: string,

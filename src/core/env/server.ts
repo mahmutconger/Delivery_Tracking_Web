@@ -27,6 +27,10 @@ export const serverEnv = serverEnvSchema.parse({
   APP_BASE_URL: process.env.APP_BASE_URL,
 });
 
+/**
+ * @brief Firebase Admin SDK için gerekli tüm ortam değişkenlerinin tanımlı olup olmadığını kontrol eder.
+ * @returns PROJECT_ID, CLIENT_EMAIL ve PRIVATE_KEY üçü de mevcutsa true.
+ */
 export function isFirebaseAdminConfigured() {
   return Boolean(
     serverEnv.FIREBASE_PROJECT_ID &&

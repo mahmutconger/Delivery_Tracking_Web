@@ -1,8 +1,18 @@
+/**
+ * @brief Uygulamaya özgü hata sınıfı; HTTP durum kodu ve makine tarafından okunabilir hata kodu taşır.
+ */
 export class AppError extends Error {
   readonly statusCode: number;
   readonly code: string;
   readonly details?: unknown;
 
+  /**
+   * @brief Yeni bir AppError örneği oluşturur.
+   * @param options.message İnsan tarafından okunabilir hata mesajı.
+   * @param options.statusCode HTTP durum kodu. Varsayılan: 500.
+   * @param options.code Makine tarafından okunabilir hata kodu. Varsayılan: "INTERNAL_ERROR".
+   * @param options.details Hata ayıklama için ek bağlam verisi.
+   */
   constructor(options: {
     message: string;
     statusCode?: number;
@@ -17,6 +27,11 @@ export class AppError extends Error {
   }
 }
 
+/**
+ * @brief Firestore'un henüz hazır olmadığını belirten standart bir AppError oluşturur.
+ * @param details Hata ayıklama için ek bağlam verisi.
+ * @returns FIRESTORE_NOT_READY kodlu, 503 durum kodlu AppError.
+ */
 export function createFirestoreNotReadyError(details?: unknown) {
   return new AppError({
     message:
@@ -27,6 +42,11 @@ export function createFirestoreNotReadyError(details?: unknown) {
   });
 }
 
+/**
+ * @brief Bilinmeyen bir hatayı Firestore hazırlık hatasına dönüştürmeye çalışır.
+ * @param error Dönüştürülecek hata nesnesi.
+ * @returns Hata Firestore hazırlık sorununa işaret ediyorsa AppError, aksi halde null.
+ */
 export function toFirestoreReadinessError(error: unknown) {
   if (
     error instanceof AppError &&
@@ -70,10 +90,20 @@ export function toFirestoreReadinessError(error: unknown) {
     : null;
 }
 
+/**
+ * @brief Verilen hatanın bir Firestore hazırlık hatası olup olmadığını kontrol eder.
+ * @param error Kontrol edilecek hata nesnesi.
+ * @returns FIRESTORE_NOT_READY kodlu bir AppError ise true.
+ */
 export function isFirestoreReadinessError(error: unknown) {
   return error instanceof AppError && error.code === "FIRESTORE_NOT_READY";
 }
 
+/**
+ * @brief Herhangi bir türdeki hatayı AppError'a normalize eder.
+ * @param error Normalize edilecek hata.
+ * @returns Zaten AppError ise olduğu gibi döner; Error ise sarmalanır; aksi halde genel bir AppError oluşturulur.
+ */
 export function normalizeError(error: unknown) {
   if (error instanceof AppError) {
     return error;

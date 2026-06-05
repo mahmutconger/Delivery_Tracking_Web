@@ -1,3 +1,8 @@
+/**
+ * @brief Google Encoded Polyline Algorithm Format ile kodlanmış bir dizeyi koordinat çiftlerine dönüştürür.
+ * @param encoded Kodlanmış polyline dizesi. null veya undefined ise boş dizi döner.
+ * @returns [enlem, boylam] çiftlerinden oluşan dizi.
+ */
 export function decodePolyline(encoded?: string | null) {
   if (!encoded) {
     return [] as Array<[number, number]>;

@@ -3,11 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * Returns a debounced copy of `value` that only updates after `delayMs`
- * has elapsed with no further changes.
- *
- * Each new `value` resets the timer, so rapid changes are collapsed into
- * a single emission once the caller goes quiet.
+ * @brief `delayMs` boyunca değişmeyen bir `value` kopyası döndürür.
+ * @param value İzlenecek değer. Her değişiklik zamanlayıcıyı sıfırlar.
+ * @param delayMs Değer yayılmadan önce beklenmesi gereken süre (ms).
+ * @returns Sessizlik süresi dolduğunda güncellenen debounced değer.
  */
 export function useDebounce<T>(value: T, delayMs: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -24,10 +23,10 @@ export function useDebounce<T>(value: T, delayMs: number): T {
 }
 
 /**
- * Returns a debounced version of `fn` that delays execution until
- * `delayMs` has passed without another call.
- *
- * The returned function is stable across renders (useRef-backed).
+ * @brief `fn`'i `delayMs` geçene kadar yürütmeyi erteleyerek debounce uygulayan bir sarmalayıcı döndürür.
+ * @param fn Debounce uygulanacak callback.
+ * @param delayMs Çalıştırmadan önceki bekleme süresi (ms).
+ * @returns Render'lar arasında stabil (useRef destekli) debounced fonksiyon.
  */
 export function useDebouncedCallback<T extends (...args: unknown[]) => void>(
   fn: T,

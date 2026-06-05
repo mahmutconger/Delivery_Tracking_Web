@@ -17,13 +17,8 @@ interface LiveModeContextValue {
 const LiveModeContext = createContext<LiveModeContextValue | null>(null);
 
 /**
- * Controls whether Firestore real-time listeners are active across the dashboard.
- *
- * Centralising this as context means:
- * - useDriverLocations starts/stops its onSnapshot based on this flag.
- * - A single toggle button in the app shell can turn off ALL real-time
- *   subscriptions simultaneously, reducing Firestore read costs.
- * - Components don't need to manage their own enabled/disabled state.
+ * @brief Dashboard genelinde Firestore gerçek zamanlı dinleyicilerinin açık/kapalı durumunu yönetir.
+ * @param children Bu provider'ın sarmalayacağı React bileşen ağacı.
  */
 export function LiveModeProvider({ children }: { children: ReactNode }) {
   const [enabled, setEnabled] = useState(false);
@@ -39,6 +34,11 @@ export function LiveModeProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * @brief LiveModeContext'e erişim sağlayan hook.
+ * @returns enabled, toggle, enable, disable alanlarını içeren LiveModeContextValue.
+ * @throws LiveModeProvider dışında kullanılırsa hata fırlatır.
+ */
 export function useLiveMode(): LiveModeContextValue {
   const context = useContext(LiveModeContext);
   if (!context) {

@@ -3,14 +3,10 @@
 import { useRef } from "react";
 
 /**
- * Returns a throttled version of `fn` that fires at most once per `limitMs`.
- *
- * The first call in a window goes through immediately. Subsequent calls
- * within the same window are dropped entirely (fire-and-forget throttle,
- * not leading+trailing). The returned function is stable across renders.
- *
- * Use for action buttons (notifications, status changes) where a double-tap
- * must not trigger a second API request within the cooldown window.
+ * @brief `fn`'in `limitMs` süre içinde en fazla bir kez çalışmasını sağlayan throttled bir sarmalayıcı döner.
+ * @param fn Throttle uygulanacak fonksiyon.
+ * @param limitMs Minimum çağrı aralığı (ms). Bu süre dolmadan yapılan çağrılar yoksayılır.
+ * @returns Render'lar arasında stabil, throttle uygulanmış fonksiyon.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useThrottle<T extends (...args: any[]) => void>(
@@ -34,8 +30,10 @@ export function useThrottle<T extends (...args: any[]) => void>(
 }
 
 /**
- * Like useThrottle but returns the remaining cooldown in ms so the caller
- * can disable / show a countdown on a button.
+ * @brief useThrottle gibi ancak kalan bekleme süresini de döndürür; buton devre dışı bırakma veya geri sayım için kullanılır.
+ * @param fn Throttle uygulanacak fonksiyon.
+ * @param limitMs Minimum çağrı aralığı (ms).
+ * @returns call: çağrı başarılıysa true, engellendiyse false dönen fonksiyon; getRemainingMs: kalan bekleme süresi (ms).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function useThrottleWithCooldown<T extends (...args: any[]) => void>(
