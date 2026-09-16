@@ -7,6 +7,10 @@ import { formatDateTime, getRelativeTime } from "@/core/utils/date";
 import { isFirebaseClientConfigured } from "@/core/env/public";
 import { isLocationStale } from "@/core/utils/geo";
 import type { DriverLocation } from "@/features/drivers/domain/models";
+import {
+  describeAuthStatus,
+  useFirebaseClientUser,
+} from "@/features/auth/application/use-firebase-client-user";
 import { getClientDb } from "@/lib/firebase/client";
 import { Button } from "@/shared/components/button";
 import { Card, CardTitle } from "@/shared/components/card";
@@ -23,12 +27,14 @@ export function DriverLiveLocation({
   const [location, setLocation] = useState(initialLocation);
   const [listenerError, setListenerError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!enabled) {
-      return;
-    }
+  // Firestore kimlik jetonunu `firebase/auth` bileşeninden alır; bu bileşen
+  // yalnızca getAuth() çağrıldığında kurulduğu için abone olmadan önce istemci
+  // oturumunun hazır olması beklenir (aksi halde permission-denied alınır).
+  const auth = useFirebaseClientUser();
+  const authIssue = describeAuthStatus(auth.status);
 
-    if (!isFirebaseClientConfigured()) {
+  useEffect(() => {
+    if (!enabled || auth.status !== "ready") {
       return;
     }
 
@@ -55,13 +61,17 @@ export function DriverLiveLocation({
         });
       },
       (error) => {
-        setListenerError(error.message);
+        setListenerError(
+          error.code === "permission-denied"
+            ? "Bu sürücünün konumunu okuma izniniz yok. Firestore kurallarının dağıtıldığından ve hesabınızda admin/dispatcher rolü olduğundan emin olun."
+            : error.message,
+        );
         setEnabled(false);
       },
     );
 
     return unsubscribe;
-  }, [driverId, enabled]);
+  }, [auth.status, driverId, enabled]);
 
   return (
     <Card>
@@ -117,6 +127,19 @@ export function DriverLiveLocation({
             </p>
           </div>
         </div>
+        {enabled && authIssue ? (
+          <div className="space-y-1 rounded-2xl bg-rose-50 px-4 py-3 text-rose-700">
+            <p className="font-medium">{authIssue.message}</p>
+            {authIssue.hint ? (
+              <p className="text-sm text-rose-600">{authIssue.hint}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {enabled && !authIssue && auth.status === "loading" ? (
+          <p className="text-slate-500">Oturum doğrulanıyor…</p>
+        ) : null}
+
         {listenerError ? (
           <p className="rounded-2xl bg-rose-50 px-4 py-3 text-rose-700">
             {listenerError}

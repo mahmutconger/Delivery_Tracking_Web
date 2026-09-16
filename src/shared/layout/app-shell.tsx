@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import type { SessionUser } from "@/core/auth/session";
+import { BrandLogo } from "@/shared/components/brand-logo";
 import { Button } from "@/shared/components/button";
 import { StatusBadge } from "@/shared/components/status-badge";
 import { AppDatePicker } from "@/shared/layout/app-date-picker";
@@ -24,14 +25,17 @@ export function AppShell({
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
         <header className="mb-6 rounded-3xl border border-white/70 bg-white/80 px-6 py-5 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <Link href="/dashboard" className="text-xl font-semibold text-slate-950">
-                Sevkiyat Yönetim Paneli
-              </Link>
-              <p className="text-sm text-slate-600">
-                Rota planlama, sürücü atama, durak yönetimi ve canlı takip.
-              </p>
-            </div>
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <BrandLogo className="size-12" />
+              <span className="space-y-1">
+                <span className="block text-xl font-semibold text-slate-950">
+                  Sevkiyat Yönetim Paneli
+                </span>
+                <span className="block text-sm text-slate-600">
+                  Rota planlama, sürücü atama, durak yönetimi ve canlı takip.
+                </span>
+              </span>
+            </Link>
             <div className="flex flex-wrap items-center gap-3">
               <Suspense fallback={null}>
                 <AppDatePicker />

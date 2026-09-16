@@ -11,6 +11,7 @@ import { isFirebaseClientConfigured } from "@/core/env/public";
 import { getClientAuth } from "@/lib/firebase/client";
 import { Button } from "@/shared/components/button";
 import { Card, CardTitle } from "@/shared/components/card";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
 import { FormField, TextInput } from "@/shared/forms/form-field";
 
 const loginSchema = z.object({
@@ -75,8 +76,17 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-md rounded-[2rem] border-white/60 bg-white/90 p-8 shadow-xl shadow-amber-100/60 backdrop-blur">
-      <div className="space-y-6">
+    <>
+      {/* Overlay Card'ın DIŞINDA durmalı: Card'daki `backdrop-blur`
+          fixed konumlu alt öğeler için içeren blok oluşturur ve overlay'i
+          kartın içine hapseder. */}
+      <SpecialProgressOverlay
+        description="Kimlik bilgileriniz doğrulanıyor."
+        open={isPending}
+        title="Giriş yapılıyor"
+      />
+      <Card className="w-full max-w-md rounded-[2rem] border-white/60 bg-white/90 p-8 shadow-xl shadow-amber-100/60 backdrop-blur">
+        <div className="space-y-6">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-600">
             Güvenli yönetici erişimi
@@ -118,7 +128,8 @@ export function LoginForm() {
             {isPending ? "Giriş yapılıyor..." : "Giriş yap"}
           </Button>
         </form>
-      </div>
-    </Card>
+        </div>
+      </Card>
+    </>
   );
 }

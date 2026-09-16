@@ -77,7 +77,7 @@ export function DashboardOverview({
         </Card>
       </div>
       <Card>
-        <LiveMapSection />
+        <LiveMapSection drivers={snapshot.drivers} />
       </Card>
     </div>
   );

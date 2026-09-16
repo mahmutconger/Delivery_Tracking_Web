@@ -1,9 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { useToast } from "@/core/context/toast-context";
 import { Button } from "@/shared/components/button";
 import { Card, CardTitle } from "@/shared/components/card";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
 
 interface ImportResult {
   imported: number;
@@ -12,6 +15,8 @@ interface ImportResult {
 }
 
 export function StopImportForm({ routeId }: { routeId: string }) {
+  const router = useRouter();
+  const { showError, showSuccess, showToast } = useToast();
   const [phase, setPhase] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -38,22 +43,47 @@ export function StopImportForm({ routeId }: { routeId: string }) {
       const json = (await res.json()) as { ok: boolean; data?: ImportResult; error?: { message: string } };
 
       if (!res.ok) {
-        setErrorMsg(json.error?.message ?? "İçe aktarma başarısız.");
+        const message = json.error?.message ?? "İçe aktarma başarısız.";
+        setErrorMsg(message);
         setPhase("error");
+        showError("İçe aktarma başarısız", message);
         return;
       }
 
       setResult(json.data!);
       setPhase("done");
       if (fileRef.current) fileRef.current.value = "";
+
+      if (json.data!.imported > 0) {
+        showSuccess(
+          "Duraklar eklendi",
+          `${json.data!.imported} durak rotaya aktarıldı.`,
+        );
+      } else {
+        showToast({
+          tone: "warning",
+          title: "Hiç durak eklenmedi",
+          description: "CSV satırlarının tamamı reddedildi, detaylara bakın.",
+        });
+      }
+
+      // Aktarım sonrası durak listesi elle yenilemeye gerek kalmadan tazelenir.
+      router.refresh();
     } catch {
-      setErrorMsg("Ağ hatası oluştu, tekrar deneyin.");
+      const message = "Ağ hatası oluştu, tekrar deneyin.";
+      setErrorMsg(message);
       setPhase("error");
+      showError("İçe aktarma başarısız", message);
     }
   }
 
   return (
     <Card>
+      <SpecialProgressOverlay
+        description="CSV satırları işleniyor, lütfen bekleyin."
+        open={phase === "loading"}
+        title="Duraklar aktarılıyor"
+      />
       <CardTitle>CSV ile toplu durak aktar</CardTitle>
       <p className="mt-1 text-sm text-slate-500">
         Beklenen sütunlar: <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">customerName, address, latitude, longitude</code>.

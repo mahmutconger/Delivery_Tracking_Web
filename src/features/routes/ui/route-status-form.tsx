@@ -1,9 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { ROUTE_STATUSES, type RouteStatus } from "@/features/routes/domain/models";
+import { useToast } from "@/core/context/toast-context";
+import { useThrottleWithCooldown } from "@/core/hooks/use-throttle";
+import {
+  ROUTE_STATUSES,
+  canTransitionRouteStatus,
+  type RouteStatus,
+} from "@/features/routes/domain/models";
+import { Button } from "@/shared/components/button";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
+import { FormField, SelectInput } from "@/shared/forms/form-field";
 
 const routeStatusLabels: Record<string, string> = {
   draft: "Taslak",
@@ -12,9 +21,6 @@ const routeStatusLabels: Record<string, string> = {
   completed: "Tamamlandı",
   cancelled: "İptal Edildi",
 };
-import { useThrottle } from "@/core/hooks/use-throttle";
-import { Button } from "@/shared/components/button";
-import { FormField, SelectInput } from "@/shared/forms/form-field";
 
 export function RouteStatusForm({
   routeId,
@@ -24,51 +30,94 @@ export function RouteStatusForm({
   currentStatus: string;
 }) {
   const router = useRouter();
+  const { showError, showSuccess, showToast } = useToast();
   const [status, setStatus] = useState<RouteStatus>(currentStatus as RouteStatus);
-  const [message, setMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const throttledSubmit = useThrottle(() => void submitInner(), 3000);
-
-  function submit() {
-    throttledSubmit();
-  }
+  // Yalnızca geçerli geçişler listelenir; aksi halde kaydet sunucu hatası döner.
+  const selectableStatuses = useMemo(
+    () =>
+      ROUTE_STATUSES.filter((routeStatus) =>
+        canTransitionRouteStatus(currentStatus, routeStatus),
+      ),
+    [currentStatus],
+  );
 
   async function submitInner() {
-    setMessage(null);
     setIsPending(true);
 
-    const response = await fetch(`/api/admin/routes/${routeId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    const payload = await response.json();
+    try {
+      const response = await fetch(`/api/admin/routes/${routeId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      const payload = await response.json();
 
-    if (!response.ok || !payload.ok) {
-      setMessage(payload.error?.message ?? "Durum güncellenemedi.");
+      if (!response.ok || !payload.ok) {
+        showError(
+          "Durum güncellenemedi",
+          payload.error?.message ?? "Beklenmeyen bir hata oluştu.",
+        );
+        return;
+      }
+
+      showSuccess(
+        "Rota durumu güncellendi",
+        `Yeni durum: ${routeStatusLabels[status] ?? status}.`,
+      );
+      router.refresh();
+    } catch {
+      showError("Durum güncellenemedi", "Sunucuya ulaşılamadı, tekrar deneyin.");
+    } finally {
       setIsPending(false);
-      return;
     }
+  }
 
-    setMessage("Durum güncellendi.");
-    setIsPending(false);
-    router.refresh();
+  const { call: callSubmit, getRemainingMs } = useThrottleWithCooldown(
+    () => void submitInner(),
+    3000,
+  );
+
+  function submit() {
+    if (isPending) return;
+
+    if (!callSubmit()) {
+      showToast({
+        tone: "warning",
+        title: "Çok hızlı",
+        description: `Lütfen ${Math.ceil(getRemainingMs() / 1000)} saniye sonra tekrar deneyin.`,
+      });
+    }
   }
 
   return (
     <div className="space-y-3">
-      <FormField label="Rota durumu">
-        <SelectInput value={status} onChange={(event) => setStatus(event.target.value as RouteStatus)}>
-          {ROUTE_STATUSES.map((routeStatus) => (
+      <SpecialProgressOverlay
+        description="Yeni durum kaydediliyor."
+        open={isPending}
+        title="Rota durumu güncelleniyor"
+      />
+      <FormField
+        label="Rota durumu"
+        hint="Sadece geçerli bir sonraki durumlar listelenir."
+      >
+        <SelectInput
+          value={status}
+          onChange={(event) => setStatus(event.target.value as RouteStatus)}
+        >
+          {selectableStatuses.map((routeStatus) => (
             <option key={routeStatus} value={routeStatus}>
               {routeStatusLabels[routeStatus] ?? routeStatus}
             </option>
           ))}
         </SelectInput>
       </FormField>
-      {message ? <p className="text-sm text-slate-600">{message}</p> : null}
-      <Button disabled={isPending} onClick={submit} type="button">
+      <Button
+        disabled={isPending || status === currentStatus}
+        onClick={submit}
+        type="button"
+      >
         {isPending ? "Kaydediliyor..." : "Durumu güncelle"}
       </Button>
     </div>

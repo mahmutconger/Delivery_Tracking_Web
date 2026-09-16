@@ -6,8 +6,10 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import { useToast } from "@/core/context/toast-context";
 import { Button } from "@/shared/components/button";
 import { Card, CardTitle } from "@/shared/components/card";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
 import { FormField, TextInput } from "@/shared/forms/form-field";
 
 const routeEditSchema = z.object({
@@ -26,6 +28,7 @@ export function RouteEditForm({
   defaultValues: { routeName: string; routeDate: string; encodedPolyline?: string | null };
 }) {
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
   const [serverError, setServerError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
@@ -58,26 +61,36 @@ export function RouteEditForm({
       payload = await response.json();
 
       if (!response.ok || !payload?.ok) {
-        setServerError(payload?.error?.message ?? "Rota güncellenemedi.");
+        const message = payload?.error?.message ?? "Rota güncellenemedi.";
+        setServerError(message);
+        showError("Rota güncellenemedi", message);
         setIsPending(false);
         return;
       }
     } catch {
-      setServerError("Sunucu hatası. Lütfen tekrar deneyin.");
+      const message = "Sunucu hatası. Lütfen tekrar deneyin.";
+      setServerError(message);
+      showError("Rota güncellenemedi", message);
       setIsPending(false);
       return;
     }
 
     setSuccessMessage("Rota güncellendi.");
     setIsPending(false);
+    showSuccess("Rota güncellendi", `${values.routeName} kaydedildi.`);
     router.refresh();
   }
 
   return (
     <Card>
+      <SpecialProgressOverlay
+        description="Rota bilgileri kaydediliyor."
+        open={isPending}
+        title="Rota güncelleniyor"
+      />
       <CardTitle>Rotayı düzenle</CardTitle>
       <p className="mt-1 text-sm text-slate-600">
-        Yalnızca taslak rotalar düzenlenebilir.
+        Yalnızca taslak veya devam ediyor durumundaki rotalar düzenlenebilir.
       </p>
       <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={form.handleSubmit(onSubmit)}>
         <FormField label="Rota adı" error={form.formState.errors.routeName?.message}>

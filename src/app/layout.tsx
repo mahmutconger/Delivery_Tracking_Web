@@ -25,6 +25,9 @@ export default function RootLayout({
   return (
     <html
       lang="tr"
+      // globals.css'teki `scroll-behavior: smooth` Next'in rota geçişlerindeki
+      // kaydırma yönetimini bozmasın diye açıkça bildirilir.
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body

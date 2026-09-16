@@ -11,6 +11,23 @@ import { FirestoreDriverRepository } from "@/features/drivers/data/firestore-dri
 import { FirestoreRouteRepository } from "@/features/routes/data/firestore-route-repository";
 import { toRouteDate } from "@/core/utils/date";
 
+/**
+ * @brief Canlı haritadaki bir işaretçiyi kime ait olduğunu gösterecek kadar zenginleştiren sürücü künyesi.
+ *
+ * Konumun kendisi istemcideki Firestore dinleyicisinden gelir; kimlik bilgileri
+ * ise Admin SDK ile sunucuda okunur. Böylece isim/telefon göstermek için
+ * istemciye ek bir koleksiyon okuma izni vermek gerekmez.
+ */
+export interface LiveDriverProfile {
+  id: string;
+  displayName: string;
+  email: string;
+  phoneNumber: string | null;
+  active: boolean;
+  assignedRouteId: string | null;
+  assignedRouteName: string | null;
+}
+
 export interface DashboardSnapshot {
   routeCount: number;
   statusCounts: Record<string, number>;
@@ -19,6 +36,7 @@ export interface DashboardSnapshot {
   inProgressStops: number;
   failedProofUploads: number;
   staleDrivers: number;
+  drivers: LiveDriverProfile[];
 }
 
 const driverRepository = new FirestoreDriverRepository();
@@ -32,15 +50,17 @@ export const emptyDashboardSnapshot: DashboardSnapshot = {
   inProgressStops: 0,
   failedProofUploads: 0,
   staleDrivers: 0,
+  drivers: [],
 };
 
 export async function getDashboardSnapshot(
   routeDate = toRouteDate(new Date()),
 ): Promise<ServerReadState<DashboardSnapshot>> {
   try {
-    const [routes, locations] = await Promise.all([
+    const [routes, locations, drivers] = await Promise.all([
       routeRepository.listRoutesByDate(routeDate),
       driverRepository.listDriverLocations(),
+      driverRepository.listDrivers(),
     ]);
 
     const stopsByRouteId = await routeRepository.listStopsForRoutes(
@@ -66,8 +86,28 @@ export async function getDashboardSnapshot(
       });
     });
 
+    // Sürücünün bugün hangi rotaya bakması gerektiği harita balonunda gösterilir.
+    const routeByDriverId = new Map(
+      routes
+        .filter((route) => route.driverId)
+        .map((route) => [route.driverId as string, route]),
+    );
+
     return readyState({
       routeCount: routes.length,
+      drivers: drivers.map<LiveDriverProfile>((driver) => {
+        const assignedRoute = routeByDriverId.get(driver.id) ?? null;
+
+        return {
+          id: driver.id,
+          displayName: driver.displayName,
+          email: driver.email,
+          phoneNumber: driver.phoneNumber,
+          active: driver.active,
+          assignedRouteId: assignedRoute?.id ?? null,
+          assignedRouteName: assignedRoute?.routeName ?? null,
+        };
+      }),
       statusCounts,
       deliveredStops,
       pendingStops,

@@ -1,52 +1,46 @@
 "use client";
 
-import "leaflet/dist/leaflet.css";
-import { MapContainer, Marker, TileLayer, useMapEvents } from "react-leaflet";
-import { createPinIcon } from "@/features/maps/ui/map-icon";
+import dynamic from "next/dynamic";
 
-const defaultCenter: [number, number] = [41.0082, 28.9784];
+import type { CoordinateFocus } from "@/features/maps/ui/coordinate-picker-view";
+import { SpecialProgressBlock } from "@/shared/components/special-progress";
 
-function PickLayer({
-  value,
-  onChange,
-}: {
-  value: { latitude: number; longitude: number };
-  onChange: (value: { latitude: number; longitude: number }) => void;
-}) {
-  useMapEvents({
-    click(event) {
-      onChange({
-        latitude: Number(event.latlng.lat.toFixed(6)),
-        longitude: Number(event.latlng.lng.toFixed(6)),
-      });
-    },
-  });
+export type { CoordinateFocus };
 
-  return <Marker icon={createPinIcon()} position={[value.latitude, value.longitude]} />;
-}
+/**
+ * Leaflet modül değerlendirmesi sırasında `window`a eriştiği için seçici yalnızca
+ * istemcide yüklenir. Aksi halde sunucu render'ı "window is not defined" ile
+ * patlar ve React tüm sayfayı client-only render'a düşürür.
+ */
+const CoordinatePickerView = dynamic(
+  () =>
+    import("@/features/maps/ui/coordinate-picker-view").then(
+      (m) => m.CoordinatePickerView,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 overflow-hidden rounded-2xl border border-slate-200">
+        <SpecialProgressBlock label="Harita yükleniyor…" />
+      </div>
+    ),
+  },
+);
 
-export function CoordinatePicker({
-  value,
-  onChange,
-  tileUrl,
-  attribution,
-}: {
+/**
+ * @brief Haritadan tıklayarak koordinat seçilmesini sağlar; `focus` verildiğinde o konuma yaklaşır.
+ * @param value Seçili koordinat; pinin konumunu belirler.
+ * @param onChange Haritaya tıklandığında yeni koordinatla çağrılır.
+ * @param tileUrl Leaflet tile şablon adresi.
+ * @param attribution Harita altında gösterilecek atıf metni.
+ * @param focus İsteğe bağlı odaklanma isteği (örn. adres arama sonucu seçildiğinde).
+ */
+export function CoordinatePicker(props: {
   value: { latitude: number; longitude: number };
   onChange: (value: { latitude: number; longitude: number }) => void;
   tileUrl: string;
   attribution: string;
+  focus?: CoordinateFocus | null;
 }) {
-  const position =
-    Number.isFinite(value.latitude) && Number.isFinite(value.longitude)
-      ? ([value.latitude, value.longitude] as [number, number])
-      : defaultCenter;
-
-  return (
-    <div className="h-64 overflow-hidden rounded-2xl border border-slate-200">
-      <MapContainer center={position} zoom={12} className="h-full w-full">
-        <TileLayer attribution={attribution} url={tileUrl} />
-        <PickLayer value={value} onChange={onChange} />
-      </MapContainer>
-    </div>
-  );
+  return <CoordinatePickerView {...props} />;
 }

@@ -1,4 +1,5 @@
 import { format, formatDistanceToNowStrict, isValid, parseISO } from "date-fns";
+import { tr } from "date-fns/locale";
 
 /**
  * @brief Bir Date nesnesini rota sorgularında kullanılan "yyyy-MM-dd" biçimine dönüştürür.
@@ -7,6 +8,15 @@ import { format, formatDistanceToNowStrict, isValid, parseISO } from "date-fns";
  */
 export function toRouteDate(date: Date) {
   return format(date, "yyyy-MM-dd");
+}
+
+/**
+ * @brief Bir tarihi `<input type="datetime-local">` alanının beklediği yerel saat biçimine dönüştürür.
+ * @param date Dönüştürülecek tarih nesnesi (varsayılan: şu an).
+ * @returns "yyyy-MM-ddTHH:mm" formatında dize, geçersiz girişte boş dize.
+ */
+export function toDateTimeLocalInput(date: Date = new Date()) {
+  return isValid(date) ? format(date, "yyyy-MM-dd'T'HH:mm") : "";
 }
 
 /**
@@ -35,14 +45,14 @@ export function formatDateTime(value?: string | number | null) {
 
 /**
  * @brief Bir zaman damgasını şu ana göre göreli süre olarak biçimlendirir.
- * @param value ISO tarih dizesi veya Unix zaman damgası (ms). null/undefined ise "never" döner.
- * @returns "3 minutes ago" gibi göreli zaman dizesi; geçersiz girişte "unknown".
+ * @param value ISO tarih dizesi veya Unix zaman damgası (ms). null/undefined ise "hiç" döner.
+ * @returns "3 dakika önce" gibi göreli zaman dizesi; geçersiz girişte "bilinmiyor".
  */
 export function getRelativeTime(value?: string | number | null) {
-  if (!value && value !== 0) return "never";
+  if (!value && value !== 0) return "hiç";
 
   const date = typeof value === "number" ? new Date(value) : new Date(value);
-  if (!isValid(date)) return "unknown";
+  if (!isValid(date)) return "bilinmiyor";
 
-  return formatDistanceToNowStrict(date, { addSuffix: true });
+  return formatDistanceToNowStrict(date, { addSuffix: true, locale: tr });
 }

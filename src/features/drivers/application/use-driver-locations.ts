@@ -1,65 +1,107 @@
 "use client";
 
-import { collection, onSnapshot } from "firebase/firestore";
-import { useEffect, useRef, useState } from "react";
+import { collection, onSnapshot, type FirestoreError } from "firebase/firestore";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { isFirebaseClientConfigured } from "@/core/env/public";
 import { isLocationStale } from "@/core/utils/geo";
 import type { DriverLocation } from "@/features/drivers/domain/models";
+import {
+  describeAuthStatus,
+  useFirebaseClientUser,
+} from "@/features/auth/application/use-firebase-client-user";
 import { getClientDb } from "@/lib/firebase/client";
 
 export type DriverLocationMap = Map<string, DriverLocation>;
+
+export interface LiveListenerError {
+  message: string;
+  hint?: string;
+}
 
 export interface UseDriverLocationsResult {
   locations: DriverLocationMap;
   freshCount: number;
   staleCount: number;
-  error: string | null;
+  error: LiveListenerError | null;
+  /** Dinleyici kurulu ve en az bir anlık görüntü alındı. */
   isListening: boolean;
+  /** Abonelik kuruluyor ya da oturum doğrulanıyor. */
+  isConnecting: boolean;
+  /** Hatayı temizleyip aboneliği baştan kurar. */
+  retry: () => void;
 }
 
 /**
- * Subscribes to the entire "drivers_location" collection with a single
- * onSnapshot listener and returns a stable Map<driverId, DriverLocation>.
- *
- * Only the Map reference changes when at least one location document
- * changes — components that useMemo off this Map will only recompute when
- * the Map itself is replaced.
- *
- * The listener is created on mount when `enabled` is true and torn down
- * when `enabled` becomes false or the component unmounts.
+ * @brief Firestore hatasını kullanıcıya gösterilebilir Türkçe mesaja çevirir.
+ * @param error Firestore dinleyicisinden gelen hata.
+ * @returns Mesaj ve giderme ipucu.
  */
-export function useDriverLocations(
-  enabled: boolean,
-): UseDriverLocationsResult {
-  const [locations, setLocations] = useState<DriverLocationMap>(new Map());
-  const [error, setError] = useState<string | null>(null);
-  const [isListening, setIsListening] = useState(false);
+function toLiveListenerError(error: FirestoreError): LiveListenerError {
+  switch (error.code) {
+    case "permission-denied":
+      return {
+        message: "Sürücü konumlarını okuma izniniz yok.",
+        hint: "Firestore kurallarının dağıtıldığından emin olun (firebase deploy --only firestore:rules) ve hesabınızda admin/dispatcher rolü olduğunu doğrulayın.",
+      };
+    case "unauthenticated":
+      return {
+        message: "Firebase oturumunuzun süresi dolmuş.",
+        hint: "Çıkış yapıp tekrar giriş yapın.",
+      };
+    case "unavailable":
+      return {
+        message: "Firestore'a şu anda ulaşılamıyor.",
+        hint: "İnternet bağlantınızı kontrol edip tekrar deneyin.",
+      };
+    default:
+      return {
+        message: "Canlı konum akışı başlatılamadı.",
+        hint: error.message,
+      };
+  }
+}
 
-  // Keep a stable ref to the latest Map so we can mutate individual entries
-  // without triggering a full re-render for unchanged drivers.
+interface ListenerState {
+  locations: DriverLocationMap;
+  error: LiveListenerError | null;
+  hasSnapshot: boolean;
+}
+
+const emptyState: ListenerState = {
+  locations: new Map(),
+  error: null,
+  hasSnapshot: false,
+};
+
+/**
+ * @brief "drivers_location" koleksiyonunu tek bir onSnapshot dinleyicisiyle izler.
+ *
+ * Abonelik yalnızca `enabled` true **ve** istemci Firebase oturumu rollü jetonla
+ * hazır olduğunda kurulur; aksi halde Firestore istekleri jetonsuz gider ve
+ * `permission-denied` alınır (bkz. useFirebaseClientUser).
+ *
+ * Dönen Map yalnızca en az bir konum belgesi değiştiğinde yeni referans alır;
+ * böylece bu Map üzerinden useMemo yapan bileşenler gereksiz yere hesaplamaz.
+ *
+ * @param enabled Canlı modun açık olup olmadığı.
+ */
+export function useDriverLocations(enabled: boolean): UseDriverLocationsResult {
+  const auth = useFirebaseClientUser();
+  const [state, setState] = useState<ListenerState>(emptyState);
+  const [attempt, setAttempt] = useState(0);
+
+  // Değişmeyen sürücü kayıtlarını yeniden oluşturmamak için son Map'i saklarız.
   const locationsRef = useRef<DriverLocationMap>(new Map());
 
+  const authIssue = describeAuthStatus(auth.status);
+  const canSubscribe = enabled && auth.status === "ready";
+
   useEffect(() => {
-    if (!enabled) {
-      setIsListening(false);
-      return;
-    }
-
-    if (!isFirebaseClientConfigured()) {
-      setError("Firebase istemci yapılandırması eksik.");
-      return;
-    }
-
-    setError(null);
-    setIsListening(true);
+    if (!canSubscribe) return;
 
     const unsubscribe = onSnapshot(
       collection(getClientDb(), "drivers_location"),
       (snapshot) => {
-        // Build a new Map so consumers get referential change signal.
-        // We copy unchanged entries from the previous Map to avoid
-        // re-allocating DriverLocation objects that haven't changed.
         const next = new Map<string, DriverLocation>(locationsRef.current);
 
         snapshot.docChanges().forEach((change) => {
@@ -86,25 +128,41 @@ export function useDriverLocations(
         });
 
         locationsRef.current = next;
-        setLocations(next);
+        setState({ locations: next, error: null, hasSnapshot: true });
       },
       (firestoreError) => {
-        setError(firestoreError.message);
-        setIsListening(false);
+        setState((current) => ({
+          ...current,
+          error: toLiveListenerError(firestoreError),
+        }));
       },
     );
 
-    return () => {
-      unsubscribe();
-      setIsListening(false);
-    };
-  }, [enabled]);
+    return unsubscribe;
+  }, [canSubscribe, attempt]);
 
-  const freshCount = [...locations.values()].filter(
-    (loc) => !isLocationStale(loc.recordedAtMillis),
+  const retry = useCallback(() => {
+    setState((current) => ({ ...current, error: null }));
+    setAttempt((current) => current + 1);
+  }, []);
+
+  const freshCount = [...state.locations.values()].filter(
+    (location) => !isLocationStale(location.recordedAtMillis),
   ).length;
 
-  const staleCount = locations.size - freshCount;
-
-  return { locations, freshCount, staleCount, error, isListening };
+  return {
+    locations: state.locations,
+    freshCount,
+    staleCount: state.locations.size - freshCount,
+    // Oturum kaynaklı sorunlar Firestore hatasının önüne geçer; kullanıcıya
+    // "izin yok" yerine asıl nedeni göstermek gerekir.
+    error: enabled ? authIssue ?? state.error : null,
+    isListening: canSubscribe && state.hasSnapshot && !state.error,
+    isConnecting:
+      enabled &&
+      !state.error &&
+      !authIssue &&
+      (auth.status === "loading" || !state.hasSnapshot),
+    retry,
+  };
 }

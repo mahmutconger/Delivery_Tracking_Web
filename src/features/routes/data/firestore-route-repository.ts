@@ -243,7 +243,9 @@ export class FirestoreRouteRepository {
       transaction.set(routeRef, {
         driverId: input.driverId ?? null,
         routeDate: input.routeDate,
-        status: input.driverId && input.status === "draft" ? "assigned" : input.status,
+        // Sürücüsü olan yeni rota doğrudan "in_progress" başlar; "assigned" durumu
+        // durak ekleme/düzenlemeyi kilitlediği için yeni rotalarda kullanılmaz.
+        status: input.driverId && input.status === "draft" ? "in_progress" : input.status,
         routeName: input.routeName,
         encodedPolyline: input.encodedPolyline ?? null,
         bounds: input.bounds ?? null,

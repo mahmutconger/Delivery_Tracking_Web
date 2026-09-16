@@ -3,9 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { useThrottle } from "@/core/hooks/use-throttle";
+import { useToast } from "@/core/context/toast-context";
+import { useThrottleWithCooldown } from "@/core/hooks/use-throttle";
 import type { Driver } from "@/features/drivers/domain/models";
 import { Button } from "@/shared/components/button";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
 import { FormField, SelectInput } from "@/shared/forms/form-field";
 
 export function RouteAssignmentForm({
@@ -18,42 +20,69 @@ export function RouteAssignmentForm({
   drivers: Driver[];
 }) {
   const router = useRouter();
+  const { showError, showSuccess, showToast } = useToast();
   const [nextDriverId, setNextDriverId] = useState(driverId ?? "");
-  const [message, setMessage] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
 
-  const throttledSubmit = useThrottle(() => void submitInner(), 3000);
-
-  async function submit() {
-    throttledSubmit();
-  }
-
   async function submitInner() {
-    setMessage(null);
     setIsPending(true);
 
-    const response = await fetch(`/api/admin/routes/${routeId}/assign`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        driverId: nextDriverId || null,
-      }),
-    });
-    const payload = await response.json();
+    try {
+      const response = await fetch(`/api/admin/routes/${routeId}/assign`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          driverId: nextDriverId || null,
+        }),
+      });
+      const payload = await response.json();
 
-    if (!response.ok || !payload.ok) {
-      setMessage(payload.error?.message ?? "Atama güncellenemedi.");
+      if (!response.ok || !payload.ok) {
+        showError(
+          "Atama güncellenemedi",
+          payload.error?.message ?? "Beklenmeyen bir hata oluştu.",
+        );
+        return;
+      }
+
+      const driverName =
+        drivers.find((driver) => driver.id === nextDriverId)?.displayName;
+      showSuccess(
+        "Atama güncellendi",
+        driverName ? `${driverName} bu rotaya atandı.` : "Rotanın sürücüsü kaldırıldı.",
+      );
+      router.refresh();
+    } catch {
+      showError("Atama güncellenemedi", "Sunucuya ulaşılamadı, tekrar deneyin.");
+    } finally {
       setIsPending(false);
-      return;
     }
+  }
 
-    setMessage("Atama güncellendi.");
-    setIsPending(false);
-    router.refresh();
+  const { call: callSubmit, getRemainingMs } = useThrottleWithCooldown(
+    () => void submitInner(),
+    3000,
+  );
+
+  function submit() {
+    if (isPending) return;
+
+    if (!callSubmit()) {
+      showToast({
+        tone: "warning",
+        title: "Çok hızlı",
+        description: `Lütfen ${Math.ceil(getRemainingMs() / 1000)} saniye sonra tekrar deneyin.`,
+      });
+    }
   }
 
   return (
     <div className="space-y-3">
+      <SpecialProgressOverlay
+        description="Sürücü ataması kaydediliyor."
+        open={isPending}
+        title="Atama güncelleniyor"
+      />
       <FormField label="Atanan sürücü">
         <SelectInput value={nextDriverId} onChange={(event) => setNextDriverId(event.target.value)}>
           <option value="">Atanmadı</option>
@@ -64,8 +93,11 @@ export function RouteAssignmentForm({
           ))}
         </SelectInput>
       </FormField>
-      {message ? <p className="text-sm text-slate-600">{message}</p> : null}
-      <Button disabled={isPending} onClick={submit} type="button">
+      <Button
+        disabled={isPending || nextDriverId === (driverId ?? "")}
+        onClick={submit}
+        type="button"
+      >
         {isPending ? "Kaydediliyor..." : "Atamayı kaydet"}
       </Button>
     </div>

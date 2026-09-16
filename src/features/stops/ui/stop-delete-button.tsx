@@ -3,43 +3,88 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useToast } from "@/core/context/toast-context";
 import { Button } from "@/shared/components/button";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
 
+/**
+ * @brief Bir durağı silen buton; sonucu toast ile bildirir.
+ * @param routeId Durağın bağlı olduğu rota kimliği.
+ * @param stopId Silinecek durak kimliği.
+ * @param customerName Onay ve bildirim metinlerinde gösterilecek müşteri adı.
+ * @param disabled Rota durumu silmeye izin vermiyorsa true.
+ */
 export function StopDeleteButton({
   routeId,
   stopId,
+  customerName,
   disabled = false,
 }: {
   routeId: string;
   stopId: string;
+  customerName?: string;
   disabled?: boolean;
 }) {
   const router = useRouter();
+  const { showError, showSuccess } = useToast();
   const [isPending, setIsPending] = useState(false);
 
   async function onDelete() {
-    if (!window.confirm("Bu durağı silmek istiyor musunuz? Bu işlem yalnızca rota taslak durumundayken mümkündür.")) {
+    const label = customerName ? `“${customerName}” durağını` : "Bu durağı";
+    if (
+      !window.confirm(
+        `${label} silmek istiyor musunuz? Bu işlem geri alınamaz.`,
+      )
+    ) {
       return;
     }
 
     setIsPending(true);
-    const response = await fetch(`/api/admin/routes/${routeId}/stops/${stopId}`, {
-      method: "DELETE",
-    });
 
-    if (response.ok) {
+    try {
+      const response = await fetch(
+        `/api/admin/routes/${routeId}/stops/${stopId}`,
+        { method: "DELETE" },
+      );
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        showError(
+          "Durak silinemedi",
+          payload?.error?.message ?? "Beklenmeyen bir hata oluştu.",
+        );
+        return;
+      }
+
+      showSuccess(
+        "Durak silindi",
+        customerName ? `${customerName} rotadan çıkarıldı.` : undefined,
+      );
       router.refresh();
-      return;
+    } catch {
+      showError("Durak silinemedi", "Sunucuya ulaşılamadı, tekrar deneyin.");
+    } finally {
+      setIsPending(false);
     }
-
-    const payload = await response.json().catch(() => null);
-    alert(payload?.error?.message ?? "Durak silinemedi.");
-    setIsPending(false);
   }
 
   return (
-    <Button disabled={disabled || isPending} onClick={onDelete} type="button" variant="danger">
-      Sil
-    </Button>
+    <>
+      <SpecialProgressOverlay
+        description={
+          customerName ? `${customerName} rotadan çıkarılıyor.` : undefined
+        }
+        open={isPending}
+        title="Durak siliniyor"
+      />
+      <Button
+        disabled={disabled || isPending}
+        onClick={() => void onDelete()}
+        type="button"
+        variant="danger"
+      >
+        {isPending ? "Siliniyor..." : "Sil"}
+      </Button>
+    </>
   );
 }

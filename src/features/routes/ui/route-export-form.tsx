@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { toRouteDate } from "@/core/utils/date";
 import { Button } from "@/shared/components/button";
+import { SpecialProgressOverlay } from "@/shared/components/special-progress";
 
 function firstDayOfMonth(today: string) {
   return today.slice(0, 8) + "01";
@@ -53,6 +54,11 @@ export function RouteExportForm() {
       className="flex flex-wrap items-end gap-3 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
       onSubmit={(e) => void handleExport(e)}
     >
+      <SpecialProgressOverlay
+        description="Seçilen tarih aralığı CSV olarak hazırlanıyor."
+        open={phase === "loading"}
+        title="Dışa aktarılıyor"
+      />
       <label className="space-y-1.5 text-sm font-medium text-slate-800">
         <span>Başlangıç tarihi</span>
         <input

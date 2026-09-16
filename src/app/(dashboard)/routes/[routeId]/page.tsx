@@ -10,16 +10,13 @@ import { RouteMap } from "@/features/maps/ui/route-map";
 import { RouteAssignmentForm } from "@/features/routes/ui/route-assignment-form";
 import { RouteEditForm } from "@/features/routes/ui/route-edit-form";
 import { RouteStatusForm } from "@/features/routes/ui/route-status-form";
-import { StopDeleteButton } from "@/features/stops/ui/stop-delete-button";
-import { StopForm } from "@/features/stops/ui/stop-form";
 import { StopImportForm } from "@/features/stops/ui/stop-import-form";
-import { StopReorderForm } from "@/features/stops/ui/stop-reorder-form";
+import { StopsPanel } from "@/features/stops/ui/stops-panel";
 import { Button } from "@/shared/components/button";
-import { Card, CardTitle } from "@/shared/components/card";
+import { Card } from "@/shared/components/card";
 import { PageHeader } from "@/shared/components/page-header";
 import { SetupState } from "@/shared/components/setup-state";
 import { StatusBadge } from "@/shared/components/status-badge";
-import { DataTable } from "@/shared/table/data-table";
 
 function getSingle(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -65,17 +62,15 @@ export default async function RouteDetailPage({
   }
 
   const routeDetail = data.data;
-
-  const editStop = editStopId
-    ? routeDetail.stops.find((stop) => stop.id === editStopId) ?? null
-    : null;
+  const routeStatus = String(routeDetail.route.status);
+  const canMutateStops = routeStatus === "draft" || routeStatus === "in_progress";
 
   return (
     <div className="space-y-6">
       <PageHeader
         eyebrow="Rota detayı"
         title={routeDetail.route.routeName}
-        description={`${formatRouteDate(routeDetail.route.routeDate)} • ${routeDetail.route.stopCount} durak`}
+        description={`${formatRouteDate(routeDetail.route.routeDate)} • ${routeDetail.stops.length} durak`}
         actions={
           <div className="flex items-center gap-3">
             <StatusBadge value={routeDetail.route.status} />
@@ -101,14 +96,17 @@ export default async function RouteDetailPage({
               </p>
             </div>
           </div>
+          {/* key: sunucudan yeni değer geldiğinde seçim kutuları bayat kalmasın diye sıfırlanır. */}
           <RouteAssignmentForm
+            key={`assign-${routeDetail.route.driverId ?? "unassigned"}`}
             routeId={routeDetail.route.id}
             driverId={routeDetail.route.driverId}
             drivers={routeDetail.drivers}
           />
           <RouteStatusForm
+            key={`status-${routeStatus}`}
             routeId={routeDetail.route.id}
-            currentStatus={String(routeDetail.route.status)}
+            currentStatus={routeStatus}
           />
         </Card>
 
@@ -120,7 +118,7 @@ export default async function RouteDetailPage({
         />
       </div>
 
-      {routeDetail.route.status === "draft" ? (
+      {canMutateStops ? (
         <RouteEditForm
           routeId={routeDetail.route.id}
           defaultValues={{
@@ -131,115 +129,15 @@ export default async function RouteDetailPage({
         />
       ) : null}
 
-      <div className="grid gap-6 2xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
-          <Card>
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <CardTitle>Duraklar</CardTitle>
-                <p className="mt-1 text-sm text-slate-600">
-                  Durak düzenleme ve silme taslak veya devam eden rotalarda kullanılabilir.
-                </p>
-              </div>
-              <StatusBadge value={`${routeDetail.route.stopCount} toplam`} />
-            </div>
-            <div className="mt-5">
-              <DataTable
-                columns={[
-                  {
-                    key: "sequence",
-                    header: "Sıra",
-                    cell: (stop) => stop.sequence,
-                  },
-                  {
-                    key: "customer",
-                    header: "Müşteri",
-                    cell: (stop) => (
-                      <div className="space-y-1">
-                        <p className="font-medium text-slate-950">{stop.customerName}</p>
-                        <p className="text-slate-500">{stop.address}</p>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "status",
-                    header: "Durum",
-                    cell: (stop) => (
-                      <div className="space-y-2">
-                        <StatusBadge value={stop.status} />
-                        <StatusBadge value={stop.proofUploadState} />
-                      </div>
-                    ),
-                  },
-                  {
-                    key: "proof",
-                    header: "Kanıt",
-                    cell: (stop) =>
-                      stop.proofImagePath ? (
-                        <a
-                          className="font-medium text-slate-900 underline underline-offset-2"
-                          href={`/api/admin/proofs/${routeId}/${stop.id}`}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Kanıtı görüntüle
-                        </a>
-                      ) : (
-                        "Kanıt yok"
-                      ),
-                  },
-                  {
-                    key: "actions",
-                    header: "İşlemler",
-                    cell: (stop) => (
-                      <div className="flex flex-wrap gap-2">
-                        <Link href={`/routes/${routeId}?editStop=${stop.id}`}>
-                          <Button variant="secondary">Düzenle</Button>
-                        </Link>
-                        <StopDeleteButton
-                          disabled={routeDetail.route.status !== "draft" && routeDetail.route.status !== "in_progress"}
-                          routeId={routeId}
-                          stopId={stop.id}
-                        />
-                      </div>
-                    ),
-                  },
-                ]}
-                getRowKey={(stop) => stop.id}
-                rows={routeDetail.stops}
-              />
-            </div>
-          </Card>
-
-          {routeDetail.route.status === "draft" || routeDetail.route.status === "in_progress" ? (
-            <Card>
-              <CardTitle>Durakları sırala</CardTitle>
-              <p className="mt-1 text-sm text-slate-600">
-                Sıralama doğru göründüğünde kaydedin.
-              </p>
-              <div className="mt-5">
-                <StopReorderForm routeId={routeId} stops={routeDetail.stops} />
-              </div>
-            </Card>
-          ) : null}
-        </div>
-
-        {routeDetail.route.status === "draft" || routeDetail.route.status === "in_progress" ? (
-          <StopForm routeId={routeId} stop={editStop} />
-        ) : (
-          <Card>
-            <CardTitle>{editStop ? "Durağı düzenle" : "Durak ekle"}</CardTitle>
-            <p className="mt-2 text-sm text-slate-600">
-              Durak eklemek veya düzenlemek için rotanın taslak veya devam ediyor durumunda olması gerekir.
-            </p>
-          </Card>
-        )}
-      </div>
+      <StopsPanel
+        canMutate={canMutateStops}
+        initialEditStopId={editStopId ?? null}
+        routeId={routeId}
+        stops={routeDetail.stops}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        {(routeDetail.route.status === "draft" || routeDetail.route.status === "in_progress") && (
-          <StopImportForm routeId={routeId} />
-        )}
+        {canMutateStops && <StopImportForm routeId={routeId} />}
         <NotificationList notifications={notifications} />
       </div>
     </div>
